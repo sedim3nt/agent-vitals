@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg-base: #0A0A0A;
+  --color-bg-elevated: #111111;
+  --color-bg-overlay: #161616;
+  --color-bg-subtle: #1A1A1A;
+  --color-bg-muted: #222222;
+  --color-brand-start: #7C5CFC;
+  --color-brand-end: #4EA8DE;
+  --color-brand-mid: #5E85FA;
+  --gradient-brand: linear-gradient(135deg, #7C5CFC 0%, #5E85FA 50%, #4EA8DE 100%);
+  --gradient-brand-text: linear-gradient(90deg, #7C5CFC 0%, #4EA8DE 100%);
+  --color-text-primary: #F5F5F5;
+  --color-text-secondary: rgba(245,245,245,0.65);
+  --color-text-tertiary: rgba(245,245,245,0.40);
+  --color-accent-purple: #7C5CFC;
+  --color-accent-blue: #4EA8DE;
+  --color-success: #3DD68C;
+  --color-warning: #F5A524;
+  --color-error: #F56565;
+  --color-border-subtle: rgba(255,255,255,0.04);
+  --color-border-default: rgba(255,255,255,0.08);
+  --color-border-strong: rgba(255,255,255,0.16);
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.gradient-text {
+  background: var(--gradient-brand-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+.card-glass:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: orb-float 12s ease-in-out infinite;
+  pointer-events: none;
 }
