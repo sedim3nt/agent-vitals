@@ -1,5 +1,5 @@
-// Agent Vitals — Mock Data Layer
-// Designed to be replaced with real API data
+// Agent Vitals — Live Data Layer
+// Fetches from /api/gateway, falls back to static definitions
 
 export type AgentStatus = 'online' | 'idle' | 'error' | 'offline';
 export type TaskStatus = 'success' | 'failed' | 'running';
@@ -12,13 +12,16 @@ export interface Agent {
   model: string;
   role: string;
   status: AgentStatus;
-  uptime: number; // percentage
+  uptime: number;
   tasksCompleted: number;
   tasksFailed: number;
   tokensUsed24h: number;
-  costPerToken: number; // USD per 1M tokens
+  costPerToken: number;
   lastSeen: string;
   description: string;
+  sessionCount?: number;
+  heartbeatEnabled?: boolean;
+  gatewayAgentId?: string;
 }
 
 export interface Task {
@@ -29,8 +32,21 @@ export interface Task {
   startedAt: string;
   completedAt?: string;
   tokensUsed: number;
-  duration?: number; // seconds
+  duration?: number;
   error?: string;
+}
+
+export interface CronJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule: string;
+  lastStatus: string;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  consecutiveErrors: number;
+  lastError?: string;
+  sessionTarget: string;
 }
 
 export interface TimeSeriesPoint {
@@ -41,11 +57,6 @@ export interface TimeSeriesPoint {
 export interface UptimeDay {
   date: string;
   uptime: number;
-}
-
-export interface AgentTokenHistory {
-  agentId: string;
-  history: TimeSeriesPoint[];
 }
 
 export interface TimelineEvent {
@@ -60,131 +71,255 @@ export interface TimelineEvent {
   meta?: Record<string, string | number>;
 }
 
-// --- Agents ---
+// --- Real Agent Definitions ---
 export const AGENTS: Agent[] = [
   {
-    id: 'orchard',
-    name: 'Orchard',
-    emoji: '🌳',
+    id: 'sedim3nt',
+    name: 'Sedim3nt',
+    emoji: '🦋',
     model: 'claude-opus-4',
-    role: 'Orchestrator',
+    role: 'Orchestrator / CEO',
     status: 'online',
-    uptime: 98.7,
-    tasksCompleted: 342,
-    tasksFailed: 4,
-    tokensUsed24h: 1_840_000,
+    uptime: 99.2,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 15,
-    lastSeen: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    description: 'Fleet orchestrator and CEO agent. Routes tasks, manages priorities, and oversees the full agent network.',
+    lastSeen: new Date().toISOString(),
+    description: 'Primary orchestrator and fleet CEO. Routes tasks, manages priorities, runs heartbeats and nightly reviews.',
+    gatewayAgentId: 'main',
   },
   {
-    id: 'rowan',
-    name: 'Rowan',
-    emoji: '🌿',
+    id: 'riptid3',
+    name: 'Riptid3',
+    emoji: '🌊',
     model: 'claude-sonnet-4',
     role: 'Research',
-    status: 'online',
-    uptime: 97.2,
-    tasksCompleted: 518,
-    tasksFailed: 11,
-    tokensUsed24h: 920_000,
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 3,
-    lastSeen: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
-    description: 'Deep research and synthesis agent. Handles web search, document analysis, and knowledge compilation.',
+    lastSeen: '',
+    description: 'Deep research and synthesis agent. Web search, document analysis, competitor intelligence, knowledge compilation.',
+    gatewayAgentId: 'research',
   },
   {
-    id: 'forrest',
-    name: 'Forrest',
-    emoji: '🌲',
+    id: 'granit3',
+    name: 'Granit3',
+    emoji: '🪨',
     model: 'claude-sonnet-4',
-    role: 'Coding',
-    status: 'online',
-    uptime: 99.1,
-    tasksCompleted: 289,
-    tasksFailed: 8,
-    tokensUsed24h: 1_100_000,
+    role: 'Coding (Blueprint)',
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 3,
-    lastSeen: new Date(Date.now() - 30 * 1000).toISOString(),
-    description: 'Full-stack coding agent. Implements features, reviews PRs, refactors codebases using the Blueprint pattern.',
+    lastSeen: '',
+    description: 'Full-stack coding agent. Implements features via the Blueprint pattern: design brief → reference study → LLM loop → deterministic checks.',
+    gatewayAgentId: 'coding',
   },
   {
-    id: 'sage',
-    name: 'Sage',
-    emoji: '🌱',
+    id: 'glaci3r',
+    name: 'Glaci3r',
+    emoji: '🐯',
     model: 'claude-opus-4',
-    role: 'Content',
-    status: 'idle',
-    uptime: 94.8,
-    tasksCompleted: 204,
-    tasksFailed: 6,
-    tokensUsed24h: 440_000,
+    role: 'Content (Editor-in-Chief)',
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 15,
-    lastSeen: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    description: 'Editor-in-Chief agent. Writes, edits, and publishes content across Substack, X, and other channels.',
+    lastSeen: '',
+    description: 'Editor-in-Chief. Writes, edits, and publishes content across Substack, X, Bluesky, and other channels.',
+    gatewayAgentId: 'content',
   },
   {
-    id: 'grove',
-    name: 'Grove',
-    emoji: '🍃',
+    id: 'tid3pool',
+    name: 'Tid3pool',
+    emoji: '🫧',
     model: 'claude-sonnet-4',
-    role: 'Operations',
-    status: 'online',
-    uptime: 96.4,
-    tasksCompleted: 631,
-    tasksFailed: 18,
-    tokensUsed24h: 680_000,
+    role: 'Ops / Journal',
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 3,
-    lastSeen: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    description: 'Ops and journal agent. Handles scheduling, daily reviews, system monitoring, and automation maintenance.',
+    lastSeen: '',
+    description: 'Operations and journal agent. Handles scheduling, daily reviews, system monitoring, and automation maintenance.',
+    gatewayAgentId: 'ops',
   },
   {
-    id: 'blossom',
-    name: 'Blossom',
-    emoji: '🌸',
+    id: 'pigm3nt',
+    name: 'Pigm3nt',
+    emoji: '🎨',
     model: 'gpt-image-1',
-    role: 'Artist',
-    status: 'idle',
-    uptime: 91.3,
-    tasksCompleted: 87,
-    tasksFailed: 3,
-    tokensUsed24h: 220_000,
+    role: 'Image Generation',
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 20,
-    lastSeen: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    description: 'Image generation agent. Creates visuals for social media, product assets, and brand materials.',
+    lastSeen: '',
+    description: 'Image generation agent. Creates visuals for social media, product assets, and brand materials via gpt-image-1.',
+    gatewayAgentId: 'artist',
   },
   {
-    id: 'hazel',
-    name: 'Hazel',
-    emoji: '🌰',
+    id: 'br3eze',
+    name: 'Br3eze',
+    emoji: '💨',
     model: 'gemini-2.5-pro',
     role: 'Google Ecosystem',
-    status: 'online',
-    uptime: 95.6,
-    tasksCompleted: 156,
-    tasksFailed: 7,
-    tokensUsed24h: 510_000,
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 7,
-    lastSeen: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-    description: 'Google ecosystem agent. Manages Gmail, Sheets, Drive, and integrations with the Google suite.',
+    lastSeen: '',
+    description: 'Google ecosystem agent. Manages Gmail, Sheets, Drive, and integrations via Gemini CLI.',
   },
   {
-    id: 'ash',
-    name: 'Ash',
-    emoji: '🔥',
+    id: 'eth3r',
+    name: 'Eth3r',
+    emoji: '⛓️',
     model: 'claude-sonnet-4',
     role: 'Blockchain',
-    status: 'error',
-    uptime: 88.9,
-    tasksCompleted: 112,
-    tasksFailed: 22,
-    tokensUsed24h: 330_000,
+    status: 'offline',
+    uptime: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tokensUsed24h: 0,
     costPerToken: 3,
-    lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    description: 'Blockchain and Web3 agent. Handles on-chain operations, DeFi monitoring, and wallet management.',
+    lastSeen: '',
+    description: 'Blockchain and Web3 agent. Handles on-chain operations, attestations, and wallet management on Base.',
   },
 ];
 
-// --- Generate 24h token sparkline (one point per hour) ---
+// --- Gateway Data Types ---
+interface GatewayAgent {
+  agentId: string;
+  isDefault?: boolean;
+  heartbeat?: {
+    enabled: boolean;
+    every: string;
+  };
+  sessions?: {
+    count: number;
+    recent?: Array<{
+      key: string;
+      updatedAt: number;
+      age: number;
+    }>;
+  };
+}
+
+interface GatewayCronJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule: { kind: string; expr: string; tz?: string };
+  sessionTarget: string;
+  state?: {
+    lastStatus?: string;
+    lastRunAtMs?: number;
+    nextRunAtMs?: number;
+    consecutiveErrors?: number;
+    lastError?: string;
+    lastDurationMs?: number;
+  };
+}
+
+export interface GatewayData {
+  health?: {
+    ok: boolean;
+    agents?: GatewayAgent[];
+    channels?: Record<string, { configured: boolean; running: boolean; probe?: { ok: boolean } }>;
+  };
+  crons?: { jobs: GatewayCronJob[] };
+  dashboard?: {
+    services?: Record<string, string>;
+  };
+  fetchedAt?: number;
+}
+
+// --- Merge gateway data into agents ---
+export function mergeGatewayData(agents: Agent[], gw: GatewayData | null): Agent[] {
+  if (!gw?.health?.agents) return agents;
+
+  const gwMap = new Map<string, GatewayAgent>();
+  for (const ga of gw.health.agents) {
+    gwMap.set(ga.agentId, ga);
+  }
+
+  // Build cron error map: which agents have cron errors?
+  const cronErrorAgents = new Set<string>();
+  if (gw.crons?.jobs) {
+    for (const job of gw.crons.jobs) {
+      if ((job.state?.consecutiveErrors ?? 0) > 0) {
+        // Map session target to agent
+        cronErrorAgents.add(job.sessionTarget === 'isolated' ? 'main' : job.sessionTarget);
+      }
+    }
+  }
+
+  return agents.map(agent => {
+    const ga = agent.gatewayAgentId ? gwMap.get(agent.gatewayAgentId) : undefined;
+    if (!ga) return agent;
+
+    const sessionCount = ga.sessions?.count ?? 0;
+    const recentSession = ga.sessions?.recent?.[0];
+    const lastActivityAgeMs = recentSession?.age ?? Infinity;
+
+    // Derive status
+    let status: AgentStatus = 'offline';
+    if (sessionCount > 0 && lastActivityAgeMs < 15 * 60 * 1000) {
+      status = 'online';
+    } else if (sessionCount > 0) {
+      status = 'idle';
+    }
+    // Override: cron errors
+    if (agent.gatewayAgentId && cronErrorAgents.has(agent.gatewayAgentId)) {
+      status = 'error';
+    }
+
+    const lastSeen = recentSession
+      ? new Date(recentSession.updatedAt).toISOString()
+      : agent.lastSeen;
+
+    return {
+      ...agent,
+      status,
+      sessionCount,
+      heartbeatEnabled: ga.heartbeat?.enabled ?? false,
+      lastSeen,
+    };
+  });
+}
+
+// --- Parse crons from gateway ---
+export function parseCrons(gw: GatewayData | null): CronJob[] {
+  if (!gw?.crons?.jobs) return [];
+  return gw.crons.jobs.map(j => ({
+    id: j.id,
+    name: j.name,
+    enabled: j.enabled,
+    schedule: j.schedule.expr + (j.schedule.tz ? ` (${j.schedule.tz})` : ''),
+    lastStatus: j.state?.lastStatus ?? 'unknown',
+    lastRunAt: j.state?.lastRunAtMs ? new Date(j.state.lastRunAtMs).toISOString() : null,
+    nextRunAt: j.state?.nextRunAtMs ? new Date(j.state.nextRunAtMs).toISOString() : null,
+    consecutiveErrors: j.state?.consecutiveErrors ?? 0,
+    lastError: j.state?.lastError,
+    sessionTarget: j.sessionTarget,
+  }));
+}
+
+// --- Generate 24h sparkline (still synthetic, no real token data yet) ---
 function generateSparkline(base: number, variance: number, hours = 24): TimeSeriesPoint[] {
   const now = Date.now();
   return Array.from({ length: hours }, (_, i) => {
@@ -195,50 +330,42 @@ function generateSparkline(base: number, variance: number, hours = 24): TimeSeri
 }
 
 export const FLEET_TOKEN_SPARKLINE: TimeSeriesPoint[] = generateSparkline(250_000, 80_000);
-
-// --- Task throughput per hour ---
 export const TASK_THROUGHPUT: TimeSeriesPoint[] = generateSparkline(12, 6);
 
-// --- Agent uptime (last 7 days) ---
-export function getAgentUptimeHistory(agentId: string): UptimeDay[] {
-  const agent = AGENTS.find(a => a.id === agentId);
-  const baseUptime = agent?.uptime ?? 95;
+export function getAgentUptimeHistory(_agentId: string): UptimeDay[] {
   const days = 7;
   return Array.from({ length: days }, (_, i) => {
     const d = new Date(Date.now() - (days - 1 - i) * 86_400_000);
     const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const noise = (Math.random() - 0.5) * 8;
-    return { date, uptime: Math.min(100, Math.max(50, baseUptime + noise)) };
+    return { date, uptime: Math.min(100, Math.max(80, 95 + noise)) };
   });
 }
 
-// --- Agent token usage over last 24h ---
-export function getAgentTokenHistory(agentId: string): TimeSeriesPoint[] {
-  const agent = AGENTS.find(a => a.id === agentId);
-  const base = (agent?.tokensUsed24h ?? 500_000) / 24;
-  return generateSparkline(base, base * 0.5);
+export function getAgentTokenHistory(_agentId: string): TimeSeriesPoint[] {
+  return generateSparkline(20_000, 10_000);
 }
 
-// --- Recent tasks per agent ---
+// --- Tasks (synthetic until we have real task tracking) ---
 const TASK_TITLES: Record<string, string[]> = {
-  orchard: ['Route research task to Rowan', 'Spawn coding sub-agent', 'Daily fleet review', 'Prioritize issue queue', 'Coordinate cross-agent workflow'],
-  rowan: ['Research competitor pricing', 'Summarize arXiv papers', 'Fetch market data', 'Analyze GitHub issues', 'Web search: AI regulation'],
-  forrest: ['Implement auth flow', 'Fix failing tests', 'Refactor API routes', 'Code review PR #42', 'Build dashboard component'],
-  sage: ['Write Substack post', 'Edit weekly newsletter', 'Draft X thread', 'Review content calendar', 'Publish blog article'],
-  grove: ['Run nightly review', 'Monitor system health', 'Update MEMORY.md', 'Schedule weekly tasks', 'Generate daily report'],
-  blossom: ['Generate hero image', 'Create social graphic', 'Batch resize assets', 'Design thumbnail', 'Art-direct product screenshot'],
-  hazel: ['Sync Gmail inbox', 'Update Google Sheet', 'Calendar event management', 'Drive folder organization', 'Gemini API test'],
-  ash: ['Check wallet balance', 'Monitor LP position', 'Sign transaction', 'Fetch on-chain data', 'Gas price alert'],
+  sedim3nt: ['Heartbeat check', 'Route task to sub-agent', 'Nightly review', 'Prioritize issue queue', 'Coordinate workflow'],
+  riptid3: ['Research competitor pricing', 'Summarize papers', 'Fetch market data', 'Analyze GitHub issues', 'Web research'],
+  granit3: ['Implement feature', 'Fix failing tests', 'Blueprint: design brief', 'Code review', 'Build component'],
+  glaci3r: ['Write Substack post', 'Edit newsletter', 'Draft X thread', 'Content calendar', 'Publish article'],
+  tid3pool: ['Run nightly review', 'Monitor system health', 'Update MEMORY.md', 'Schedule tasks', 'Daily report'],
+  pigm3nt: ['Generate hero image', 'Create social graphic', 'Batch resize assets', 'Design thumbnail', 'Product screenshot'],
+  br3eze: ['Sync Gmail inbox', 'Update Google Sheet', 'Calendar management', 'Drive organization', 'Gemini task'],
+  eth3r: ['Check wallet balance', 'Monitor attestations', 'Sign transaction', 'Fetch on-chain data', 'Gas price alert'],
 };
 
 export function getAgentTasks(agentId: string): Task[] {
   const titles = TASK_TITLES[agentId] ?? ['Unknown task'];
   const agent = AGENTS.find(a => a.id === agentId);
-  const failRate = (agent?.tasksFailed ?? 5) / Math.max(1, (agent?.tasksCompleted ?? 100) + (agent?.tasksFailed ?? 5));
+  const isOnline = agent?.status === 'online';
 
-  return Array.from({ length: 10 }, (_, i) => {
-    const isRunning = i === 0 && agent?.status === 'online';
-    const isFailed = !isRunning && Math.random() < failRate;
+  return Array.from({ length: 8 }, (_, i) => {
+    const isRunning = i === 0 && isOnline;
+    const isFailed = !isRunning && Math.random() < 0.08;
     const start = new Date(Date.now() - (i * 3.5 + Math.random() * 2) * 3600_000);
     const duration = Math.floor(30 + Math.random() * 300);
 
@@ -249,33 +376,26 @@ export function getAgentTasks(agentId: string): Task[] {
       status: isRunning ? 'running' : isFailed ? 'failed' : 'success',
       startedAt: start.toISOString(),
       completedAt: isRunning ? undefined : new Date(start.getTime() + duration * 1000).toISOString(),
-      tokensUsed: Math.floor(5_000 + Math.random() * 80_000),
+      tokensUsed: Math.floor(5_000 + Math.random() * 40_000),
       duration: isRunning ? undefined : duration,
-      error: isFailed ? 'RateLimitError: API quota exceeded' : undefined,
+      error: isFailed ? 'Task execution timed out' : undefined,
     };
   });
 }
 
-// --- Error log per agent ---
 export function getAgentErrors(agentId: string): { timestamp: string; message: string; code: string }[] {
   const agent = AGENTS.find(a => a.id === agentId);
-  if (!agent || agent.tasksFailed === 0) return [];
+  if (!agent || agent.status !== 'error') return [];
 
-  const errors = [
-    { code: 'RATE_LIMIT', message: 'API rate limit exceeded — retried after 60s' },
-    { code: 'TIMEOUT', message: 'Task execution exceeded 5m timeout' },
-    { code: 'TOOL_ERROR', message: 'exec() returned non-zero exit code' },
-    { code: 'CONTEXT_OVERFLOW', message: 'Context window exceeded — truncated input' },
-    { code: 'AUTH_FAIL', message: 'Token refresh failed — re-authenticating' },
+  return [
+    {
+      timestamp: new Date(Date.now() - 2 * 3600_000).toISOString(),
+      code: 'CRON_ERROR',
+      message: 'Associated cron job has consecutive errors',
+    },
   ];
-
-  return Array.from({ length: Math.min(agent.tasksFailed, 5) }, (_, i) => ({
-    timestamp: new Date(Date.now() - (i * 6 + Math.random() * 4) * 3600_000).toISOString(),
-    ...errors[i % errors.length],
-  }));
 }
 
-// --- Agent config (mock AGENTS.md) ---
 export function getAgentConfig(agentId: string): string {
   const agent = AGENTS.find(a => a.id === agentId);
   if (!agent) return '';
@@ -285,7 +405,7 @@ export function getAgentConfig(agentId: string): string {
 - **Name:** ${agent.name}
 - **Model:** ${agent.model}
 - **Role:** ${agent.role}
-- **Status:** ${agent.status}
+- **Gateway Agent ID:** ${agent.gatewayAgentId ?? 'none'}
 
 ## Mission
 ${agent.description}
@@ -294,45 +414,38 @@ ${agent.description}
 - Autonomous task execution
 - Tool use: exec, web_search, web_fetch, read, write, edit
 - Memory: reads/writes memory/YYYY-MM-DD.md daily
-- Reports to: Orchard (orchestrator)
+- Reports to: Sedim3nt (orchestrator)
 
 ## Constraints
 - Never perform financial transactions without approval
 - Ask before destructive file operations
 - No external messaging without explicit authorization
 - Escalate when uncertain about safety
-
-## Current Priorities
-1. Maintain fleet health monitoring
-2. Process task queue
-3. Report blockers to Orchard within 1 hour
 `;
 }
 
 // --- Timeline events ---
-const EVENT_TEMPLATES = [
-  { type: 'task_complete' as const, severity: 'success' as const, template: (a: Agent) => `Completed: ${TASK_TITLES[a.id]?.[0] ?? 'task'}` },
-  { type: 'task_failed' as const, severity: 'error' as const, template: (a: Agent) => `Failed: ${TASK_TITLES[a.id]?.[1] ?? 'task'} — RateLimitError` },
-  { type: 'task_started' as const, severity: 'info' as const, template: (a: Agent) => `Started: ${TASK_TITLES[a.id]?.[2] ?? 'task'}` },
-  { type: 'error' as const, severity: 'error' as const, template: (_a: Agent) => `Error: Context window exceeded` },
-  { type: 'status_change' as const, severity: 'warning' as const, template: (a: Agent) => `Status changed to ${a.status}` },
-  { type: 'task_complete' as const, severity: 'success' as const, template: (a: Agent) => `Completed: ${TASK_TITLES[a.id]?.[3] ?? 'task'}` },
-];
-
 export function getTimelineEvents(limit = 50): TimelineEvent[] {
   const events: TimelineEvent[] = [];
   const now = Date.now();
+  const templates: Array<{ type: TimelineEvent['type']; severity: EventSeverity; msg: (a: Agent) => string }> = [
+    { type: 'task_complete', severity: 'success', msg: (a) => `Completed: ${(TASK_TITLES[a.id] ?? ['task'])[0]}` },
+    { type: 'task_failed', severity: 'error', msg: (a) => `Failed: ${(TASK_TITLES[a.id] ?? ['task'])[1]}` },
+    { type: 'task_started', severity: 'info', msg: (a) => `Started: ${(TASK_TITLES[a.id] ?? ['task'])[2]}` },
+    { type: 'status_change', severity: 'warning', msg: (a) => `Status → ${a.status}` },
+    { type: 'task_complete', severity: 'success', msg: (a) => `Completed: ${(TASK_TITLES[a.id] ?? ['task'])[3]}` },
+  ];
 
   for (let i = 0; i < limit; i++) {
     const agent = AGENTS[Math.floor(Math.random() * AGENTS.length)];
-    const tpl = EVENT_TEMPLATES[Math.floor(Math.random() * EVENT_TEMPLATES.length)];
+    const tpl = templates[Math.floor(Math.random() * templates.length)];
     events.push({
       id: `evt-${i}`,
       agentId: agent.id,
       agentName: agent.name,
       agentEmoji: agent.emoji,
       type: tpl.type,
-      message: tpl.template(agent),
+      message: tpl.msg(agent),
       severity: tpl.severity,
       timestamp: new Date(now - i * 180_000 - Math.random() * 120_000).toISOString(),
     });
@@ -364,16 +477,18 @@ export function getAgentCosts() {
     cost: parseFloat(((a.tokensUsed24h / 1_000_000) * a.costPerToken).toFixed(2)),
     tokens: a.tokensUsed24h,
     tasks: a.tasksCompleted,
-    efficiency: parseFloat((a.tasksCompleted / Math.max(0.01, (a.tokensUsed24h / 1_000_000) * a.costPerToken)).toFixed(1)),
+    efficiency: 0,
   })).sort((a, b) => b.cost - a.cost);
 }
 
-export function getFleetStats() {
-  const totalAgents = AGENTS.length;
-  const activeNow = AGENTS.filter(a => a.status === 'online').length;
-  const errorsToday = AGENTS.reduce((sum, a) => sum + a.tasksFailed, 0);
-  const tokensTotal = AGENTS.reduce((sum, a) => sum + a.tokensUsed24h, 0);
-  const totalCost = AGENTS.reduce((sum, a) => sum + (a.tokensUsed24h / 1_000_000) * a.costPerToken, 0);
+export function getFleetStats(agents?: Agent[]) {
+  const list = agents ?? AGENTS;
+  const totalAgents = list.length;
+  const activeNow = list.filter(a => a.status === 'online').length;
+  const errorsToday = list.filter(a => a.status === 'error').length;
+  const tokensTotal = list.reduce((sum, a) => sum + a.tokensUsed24h, 0);
+  const totalCost = list.reduce((sum, a) => sum + (a.tokensUsed24h / 1_000_000) * a.costPerToken, 0);
+  const sessions = list.reduce((sum, a) => sum + (a.sessionCount ?? 0), 0);
 
-  return { totalAgents, activeNow, errorsToday, tokensTotal, totalCost };
+  return { totalAgents, activeNow, errorsToday, tokensTotal, totalCost, sessions };
 }

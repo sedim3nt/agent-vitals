@@ -1,11 +1,13 @@
 'use client';
 
-import { AGENTS, FLEET_TOKEN_SPARKLINE, TASK_THROUGHPUT, getFleetStats } from '@/lib/data';
+import { FLEET_TOKEN_SPARKLINE, TASK_THROUGHPUT, getFleetStats } from '@/lib/data';
+import { useGateway } from '@/lib/useGateway';
 import { AgentCard } from '@/components/AgentCard';
 import { StatCard } from '@/components/StatCard';
 import { SparklineChart } from '@/components/SparklineChart';
 import { ThroughputChart } from '@/components/ThroughputChart';
-import { Activity, Cpu, AlertTriangle, Zap } from 'lucide-react';
+import { CronTable } from '@/components/CronTable';
+import { Activity, Cpu, AlertTriangle, Zap, Radio, Server } from 'lucide-react';
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -13,22 +15,61 @@ function formatTokens(n: number): string {
   return n.toString();
 }
 
+function timeAgo(ts: number | null): string {
+  if (!ts) return 'never';
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  return `${Math.floor(diff / 3600_000)}h ago`;
+}
+
 export default function Dashboard() {
-  const stats = getFleetStats();
+  const { agents, crons, gatewayOk, channelHealth, lastFetched, loading } = useGateway();
+  const stats = getFleetStats(agents);
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 py-8">
       {/* Page header */}
-      <div className="mb-8">
-        <h1
-          className="text-3xl font-bold mb-1"
-          style={{ letterSpacing: '-0.03em' }}
-        >
-          <span className="gradient-text">Fleet Overview</span>
-        </h1>
-        <p className="text-sm" style={{ color: 'rgba(245,245,245,0.45)' }}>
-          Real-time health monitoring across {stats.totalAgents} agents — Last updated just now
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-1" style={{ letterSpacing: '-0.03em' }}>
+            <span className="gradient-text">Fleet Overview</span>
+          </h1>
+          <p className="text-sm" style={{ color: 'rgba(245,245,245,0.45)' }}>
+            {loading ? 'Connecting to gateway…' : (
+              <>
+                {stats.totalAgents} agents · {stats.sessions} sessions · Updated {timeAgo(lastFetched)}
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* Gateway status pill */}
+        <div className="flex items-center gap-2">
+          {Object.entries(channelHealth).map(([name, ch]) => (
+            <div
+              key={name}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
+              style={{
+                background: ch.probeOk ? 'rgba(61,214,140,0.1)' : 'rgba(245,101,101,0.1)',
+                color: ch.probeOk ? '#3DD68C' : '#F56565',
+              }}
+            >
+              <Radio size={10} />
+              {name}
+            </div>
+          ))}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
+            style={{
+              background: gatewayOk ? 'rgba(61,214,140,0.1)' : 'rgba(245,101,101,0.1)',
+              color: gatewayOk ? '#3DD68C' : '#F56565',
+            }}
+          >
+            <Server size={10} />
+            Gateway
+          </div>
+        </div>
       </div>
 
       {/* Stats bar */}
@@ -46,15 +87,15 @@ export default function Dashboard() {
           accent
         />
         <StatCard
-          label="Errors Today"
-          value={stats.errorsToday}
-          sub="across all agents"
+          label="Cron Errors"
+          value={crons.filter(c => c.consecutiveErrors > 0).length}
+          sub={`of ${crons.length} total crons`}
           icon={<AlertTriangle size={14} />}
         />
         <StatCard
-          label="Tokens 24h"
-          value={formatTokens(stats.tokensTotal)}
-          sub={`$${stats.totalCost.toFixed(2)} estimated`}
+          label="Sessions"
+          value={stats.sessions}
+          sub="across all agents"
           icon={<Zap size={14} />}
           accent
         />
@@ -62,7 +103,6 @@ export default function Dashboard() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {/* Token burn sparkline */}
         <div className="card-glass p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -76,7 +116,6 @@ export default function Dashboard() {
           <SparklineChart data={FLEET_TOKEN_SPARKLINE} color="#7C5CFC" height={80} showTooltip />
         </div>
 
-        {/* Task throughput */}
         <div className="card-glass p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -101,11 +140,14 @@ export default function Dashboard() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-        {AGENTS.map(agent => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 mb-10">
+        {agents.map(agent => (
           <AgentCard key={agent.id} agent={agent} />
         ))}
       </div>
+
+      {/* Cron Jobs */}
+      {crons.length > 0 && <CronTable crons={crons} />}
     </div>
   );
 }

@@ -57,7 +57,7 @@ export function Nav() {
         {/* Right side: status indicator */}
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs" style={{ color: 'rgba(245,245,245,0.35)' }}>
-            5 online
+            SpiritTree Fleet
           </span>
           <div
             className="w-1.5 h-1.5 rounded-full"
