@@ -1,7 +1,13 @@
 'use client';
 
 import { CronJob } from '@/lib/data';
-import { CheckCircle, XCircle, Clock, Pause } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Pause, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
+
+const CRON_HELP: Record<string, string> = {
+  timeout: 'This cron is taking longer than its timeout allows. Consider increasing the timeout or optimizing the script.',
+  error: 'This cron failed on its last run. Check the script for issues.',
+};
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '—';
@@ -90,6 +96,9 @@ export function CronTable({ crons }: CronTableProps) {
                             {cron.consecutiveErrors}×
                           </span>
                         )}
+                        {cron.lastStatus !== 'ok' && cron.lastStatus !== 'unknown' && cron.enabled && (
+                          <CronHelpTip status={cron.lastStatus} />
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -147,5 +156,44 @@ export function CronTable({ crons }: CronTableProps) {
         )}
       </div>
     </div>
+  );
+}
+
+function CronHelpTip({ status }: { status: string }) {
+  const [open, setOpen] = useState(false);
+  const helpText = CRON_HELP[status];
+  if (!helpText) return null;
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1 text-xs rounded-full px-1.5 py-0.5 transition-colors"
+        style={{
+          background: 'rgba(245,165,36,0.1)',
+          color: '#F5A524',
+          cursor: 'pointer',
+          border: 'none',
+        }}
+        aria-label="What's wrong?"
+      >
+        <HelpCircle size={10} />
+        <span>What&apos;s wrong?</span>
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 z-10 p-2.5 rounded-lg text-xs leading-relaxed"
+          style={{
+            background: 'rgba(30,30,30,0.95)',
+            border: '1px solid rgba(245,165,36,0.2)',
+            color: 'rgba(245,245,245,0.75)',
+            width: '260px',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          {helpText}
+        </div>
+      )}
+    </span>
   );
 }

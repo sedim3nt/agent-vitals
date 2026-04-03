@@ -7,7 +7,59 @@ import { StatCard } from '@/components/StatCard';
 import { SparklineChart } from '@/components/SparklineChart';
 import { ThroughputChart } from '@/components/ThroughputChart';
 import { CronTable } from '@/components/CronTable';
-import { Activity, Cpu, AlertTriangle, Zap, Radio, Server } from 'lucide-react';
+import { Activity, Cpu, AlertTriangle, Zap, Radio, Server, MessageCircle } from 'lucide-react';
+
+function generateStatusSummary(
+  agents: ReturnType<typeof import('@/lib/data').mergeGatewayData>,
+  crons: ReturnType<typeof import('@/lib/data').parseCrons>,
+  gatewayOk: boolean
+): string {
+  const total = agents.length;
+  const online = agents.filter(a => a.status === 'online').length;
+  const idle = agents.filter(a => a.status === 'idle').length;
+  const erroring = agents.filter(a => a.status === 'error');
+  const offline = agents.filter(a => a.status === 'offline');
+
+  const parts: string[] = [];
+
+  // Agent health
+  if (erroring.length === 0 && offline.length === 0) {
+    parts.push(`All ${total} agents healthy`);
+  } else if (erroring.length > 0) {
+    const names = erroring.map(a => a.name).join(', ');
+    parts.push(`${erroring.length === 1 ? '' : `${erroring.length} agents erroring: `}${erroring.length === 1 ? `${names} is erroring` : names}`);
+  } else {
+    parts.push(`${online + idle} of ${total} agents active`);
+  }
+
+  // Offline agents (mention by name if 1-3)
+  if (offline.length > 0 && offline.length <= 3 && erroring.length === 0) {
+    const names = offline.map(a => a.name).join(', ');
+    parts.push(`${names} offline`);
+  } else if (offline.length > 3) {
+    parts.push(`${offline.length} agents offline`);
+  }
+
+  // Cron health
+  const cronErrors = crons.filter(c => c.consecutiveErrors > 0);
+  if (cronErrors.length === 0 && crons.length > 0) {
+    parts.push(`all ${crons.length} crons green`);
+  } else if (cronErrors.length > 0) {
+    if (cronErrors.length <= 2) {
+      const names = cronErrors.map(c => c.name).join(', ');
+      parts.push(`${names} ${cronErrors.length === 1 ? 'needs' : 'need'} attention`);
+    } else {
+      parts.push(`${cronErrors.length} crons need attention`);
+    }
+  }
+
+  // Gateway
+  if (!gatewayOk) {
+    parts.push('gateway unreachable');
+  }
+
+  return parts.join('. ') + '.';
+}
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -29,6 +81,32 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 py-8">
+      {/* Status Summary */}
+      {!loading && (
+        <div
+          className="mb-6 px-4 py-3 rounded-lg flex items-start gap-3"
+          style={{
+            background: crons.filter(c => c.consecutiveErrors > 0).length > 0 || agents.some(a => a.status === 'error')
+              ? 'rgba(245,165,36,0.06)'
+              : 'rgba(61,214,140,0.06)',
+            border: `1px solid ${crons.filter(c => c.consecutiveErrors > 0).length > 0 || agents.some(a => a.status === 'error') ? 'rgba(245,165,36,0.15)' : 'rgba(61,214,140,0.12)'}`,
+          }}
+        >
+          <MessageCircle
+            size={14}
+            className="mt-0.5 shrink-0"
+            style={{
+              color: crons.filter(c => c.consecutiveErrors > 0).length > 0 || agents.some(a => a.status === 'error')
+                ? '#F5A524'
+                : '#3DD68C',
+            }}
+          />
+          <p className="text-sm" style={{ color: 'rgba(245,245,245,0.75)', lineHeight: '1.5' }}>
+            {generateStatusSummary(agents, crons, gatewayOk)}
+          </p>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
