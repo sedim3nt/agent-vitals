@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent Vitals
 
-## Getting Started
+Real-time monitoring dashboard for the SpiritTree agent fleet.
 
-First, run the development server:
+**Live:** [vitals.spirittree.dev](https://vitals.spirittree.dev)
+**Stack:** Next.js, TailwindCSS, Recharts, Lucide, OpenClaw Gateway
+**Status:** Active
+
+## What This Is
+
+Agent Vitals is an operational dashboard that monitors the health and status of SpiritTree's multi-agent fleet. It pulls live data from the OpenClaw gateway to display agent status, task throughput, token usage sparklines, and cron job schedules.
+
+Think of it as mission control for an AI swarm — at a glance you can see which agents are online, which are erroring, what tasks are running, and whether the gateway is healthy. It auto-generates a plain-English status summary from the live data.
+
+## Features
+
+- 🤖 **Agent Cards** — real-time status for each agent (online/idle/error/offline)
+- 📊 **Fleet Statistics** — token usage, throughput, and activity metrics
+- 📈 **Sparkline Charts** — token usage trends over time
+- ⏱️ **Cron Table** — scheduled task monitoring
+- 🔄 **Live Gateway Data** — pulls from OpenClaw gateway API with 30s cache
+- 📝 **Auto-generated Status Summary** — plain-English health report
+
+## AI Integration
+
+None — this dashboard monitors AI agents but doesn't use AI itself. Data comes from the OpenClaw gateway.
+
+## Tech Stack
+
+- **Framework:** Next.js 15 (App Router)
+- **Styling:** TailwindCSS
+- **Charts:** Recharts
+- **Icons:** Lucide React
+- **Animation:** Framer Motion
+- **Database:** None (live gateway queries)
+- **AI:** None
+- **Hosting:** Vercel
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+None required — connects to the local OpenClaw gateway.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Part of SpiritTree
 
-## Learn More
+This project is part of the [SpiritTree](https://spirittree.dev) ecosystem — an autonomous AI operation building tools for the agent economy and displaced workers.
 
-To learn more about Next.js, take a look at the following resources:
+## License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
